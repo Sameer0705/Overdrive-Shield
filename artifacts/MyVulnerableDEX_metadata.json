@@ -1,0 +1,180 @@
+{
+	"compiler": {
+		"version": "0.8.30+commit.73712a01"
+	},
+	"language": "Solidity",
+	"output": {
+		"abi": [
+			{
+				"inputs": [
+					{
+						"internalType": "address",
+						"name": "_tokenA",
+						"type": "address"
+					},
+					{
+						"internalType": "address",
+						"name": "_tokenB",
+						"type": "address"
+					}
+				],
+				"stateMutability": "nonpayable",
+				"type": "constructor"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "uint256",
+						"name": "_amountA",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint256",
+						"name": "_amountB",
+						"type": "uint256"
+					}
+				],
+				"name": "addLiquidity",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "contract IERC20",
+						"name": "_token",
+						"type": "address"
+					}
+				],
+				"name": "emergencyWithdraw",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "lastTrader",
+				"outputs": [
+					{
+						"internalType": "address",
+						"name": "",
+						"type": "address"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "reserveA",
+				"outputs": [
+					{
+						"internalType": "uint256",
+						"name": "",
+						"type": "uint256"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "reserveB",
+				"outputs": [
+					{
+						"internalType": "uint256",
+						"name": "",
+						"type": "uint256"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "uint256",
+						"name": "_amountInA",
+						"type": "uint256"
+					}
+				],
+				"name": "swapTokenAForTokenB",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "tokenA",
+				"outputs": [
+					{
+						"internalType": "contract IERC20",
+						"name": "",
+						"type": "address"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "tokenB",
+				"outputs": [
+					{
+						"internalType": "contract IERC20",
+						"name": "",
+						"type": "address"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			}
+		],
+		"devdoc": {
+			"kind": "dev",
+			"methods": {},
+			"title": "MyVulnerableDEX",
+			"version": 1
+		},
+		"userdoc": {
+			"kind": "user",
+			"methods": {
+				"emergencyWithdraw(address)": {
+					"notice": "This function has CRITICAL BROKEN ACCESS CONTROL."
+				},
+				"swapTokenAForTokenB(uint256)": {
+					"notice": "This function contains a CRITICAL REENTRANCY VULNERABILITY."
+				}
+			},
+			"notice": "A DEX that is INTENTIONALLY vulnerable to multiple attacks. DO NOT USE THIS ON A MAINNET. --- VULNERABILITIES INTRODUCED --- 1. Reentrancy: The swap function updates reserves *after* external calls. 2. Broken Access Control: Anyone can call emergencyWithdraw and drain the contract. 3. Unchecked Return Values: Uses raw .transfer() and .transferFrom()  without checking if they succeeded. 4. Compiler Warnings: Includes an unused state variable.",
+			"version": 1
+		}
+	},
+	"settings": {
+		"compilationTarget": {
+			"contract/MyDEX_flattened.sol": "MyVulnerableDEX"
+		},
+		"evmVersion": "prague",
+		"libraries": {},
+		"metadata": {
+			"bytecodeHash": "ipfs"
+		},
+		"optimizer": {
+			"enabled": true,
+			"runs": 200
+		},
+		"remappings": []
+	},
+	"sources": {
+		"contract/MyDEX_flattened.sol": {
+			"keccak256": "0xd758f45866ab36f44684f0db5a5970a3eb602d82586719408b974e0253f7cc42",
+			"license": "MIT",
+			"urls": [
+				"bzz-raw://424bc78e2c00008b9bafcf9202e9ebad5432bf39d735f92beff496faa0f672d3",
+				"dweb:/ipfs/QmVDnJmKtJMwPmARp1TbAkfRvfeW9mbe1tzByDMCx5KbzH"
+			]
+		}
+	},
+	"version": 1
+}

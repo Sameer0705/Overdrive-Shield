@@ -1,0 +1,39 @@
+{
+  "name": "overdrive-shield",
+  "version": "2.0.0",
+  "description": "🛡️ Overdrive Shield - Advanced MEV Protection Dashboard with real-time monitoring and swap simulation",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "swap-frontrun": "node send_swap.js frontrun",
+    "swap-victim": "node send_swap.js victim",
+    "swap-backrun": "node send_swap.js backrun",
+    "test-connection": "node test.js"
+  },
+  "keywords": [
+    "MEV",
+    "DeFi",
+    "Web3",
+    "Ethereum",
+    "F1",
+    "Security",
+    "Dashboard",
+    "Real-time"
+  ],
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "ethers": "^6.13.1",
+    "ws": "^8.18.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "your-repo-url"
+  },
+  "author": "F1 MEV Protection Team",
+  "license": "ISC"
+}
+

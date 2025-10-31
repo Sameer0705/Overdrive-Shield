@@ -1,0 +1,1070 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🛡️ Overdrive Shield - MEV Protection</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
+    <!-- Using unpkg CDN for better reliability -->
+    <script src="https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+    
+    <style>
+        /* === F1 RACING THEME === */
+        :root {
+            --f1-black: #15151E;
+            --f1-dark: #1C1C27;
+            --f1-red: #E10600;
+            --f1-red-glow: #FF1E00;
+            --f1-yellow: #FFD700;
+            --f1-white: #FFFFFF;
+            --f1-grey: #6B7280;
+            --f1-track: #2D2D3A;
+            --f1-green: #10B981;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            font-family: 'Rajdhani', sans-serif;
+            background: linear-gradient(135deg, var(--f1-black) 0%, #000000 100%);
+            color: var(--f1-white);
+            overflow-x: hidden;
+        }
+
+        body {
+            position: relative;
+        }
+        
+        /* Racing track lines background */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                repeating-linear-gradient(
+                    90deg,
+                    transparent,
+                    transparent 50px,
+                    rgba(225, 6, 0, 0.03) 50px,
+                    rgba(225, 6, 0, 0.03) 51px
+                );
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* === HEADER === */
+        .header {
+            background: linear-gradient(135deg, var(--f1-dark) 0%, var(--f1-black) 100%);
+            padding: 20px 30px;
+            border-bottom: 2px solid var(--f1-red);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--f1-red) 0%, var(--f1-yellow) 50%, var(--f1-red) 100%);
+            background-size: 200% 100%;
+            animation: raceLine 3s linear infinite;
+        }
+        
+        @keyframes raceLine {
+            0% { background-position: 0% 0%; }
+            100% { background-position: 200% 0%; }
+        }
+        
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .branding {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .logo-container {
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+        }
+        
+        .logo-container svg,
+        .logo-container img {
+            height: 100%;
+            width: auto;
+            max-width: 300px;
+        }
+
+        .status-bar {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .status-light {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--f1-grey);
+        }
+
+        .status-light.online {
+            background: var(--f1-green);
+            box-shadow: 0 0 10px var(--f1-green);
+            animation: pulse-green 2s infinite;
+        }
+
+        .status-light.offline {
+            background: var(--f1-red);
+        }
+
+        .wallet-btn {
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--f1-red) 0%, #B00500 100%);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .wallet-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(225, 6, 0, 0.5);
+        }
+
+        .wallet-btn.connected {
+            background: linear-gradient(135deg, var(--f1-green) 0%, #0D8A5F 100%);
+        }
+
+        /* === MAIN GRID === */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 1200px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: linear-gradient(135deg, var(--f1-dark) 0%, rgba(28, 28, 39, 0.8) 100%);
+            border: 1px solid rgba(225, 6, 0, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid rgba(225, 6, 0, 0.2);
+        }
+
+        .card-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--f1-yellow);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .badge {
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .badge-critical { background: var(--f1-red); color: white; }
+        .badge-high { background: #FF6B35; color: white; }
+        .badge-medium { background: var(--f1-yellow); color: black; }
+        .badge-low { background: var(--f1-green); color: white; }
+        
+        /* MEV Type Badges */
+        .mev-badge {
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            display: inline-block;
+            margin-left: 8px;
+        }
+        
+        .mev-frontrun { 
+            background: linear-gradient(135deg, #FF6B35 0%, #FF8C5C 100%);
+            color: white; 
+            border: 1px solid #FF6B35;
+            box-shadow: 0 0 10px rgba(255, 107, 53, 0.5);
+        }
+        
+        .mev-backrun { 
+            background: linear-gradient(135deg, #9333EA 0%, #A855F7 100%);
+            color: white; 
+            border: 1px solid #9333EA;
+            box-shadow: 0 0 10px rgba(147, 51, 234, 0.5);
+        }
+        
+        .mev-normal { 
+            background: linear-gradient(135deg, var(--f1-green) 0%, #34D399 100%);
+            color: white; 
+            border: 1px solid var(--f1-green);
+        }
+        
+        .mev-suspicious { 
+            background: linear-gradient(135deg, var(--f1-yellow) 0%, #FDE047 100%);
+            color: black; 
+            border: 1px solid var(--f1-yellow);
+        }
+
+        /* === SWAP SIMULATOR === */
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--f1-grey);
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .input-field {
+            width: 100%;
+            padding: 12px 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: white;
+            font-size: 1rem;
+            font-family: 'Rajdhani', sans-serif;
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: var(--f1-red);
+            box-shadow: 0 0 10px rgba(225, 6, 0, 0.3);
+        }
+
+        .simulate-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, var(--f1-red) 0%, var(--f1-red-glow) 100%);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .simulate-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 25px rgba(225, 6, 0, 0.5);
+        }
+
+        .simulate-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .sim-result {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid var(--f1-green);
+            border-radius: 8px;
+        }
+
+        .sim-result-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .sim-result-row:last-child {
+            border-bottom: none;
+        }
+
+        .sim-label {
+            color: var(--f1-grey);
+            font-weight: 500;
+        }
+
+        .sim-value {
+            color: var(--f1-white);
+            font-weight: 700;
+        }
+
+        /* === ALERTS FEED === */
+        .alert-feed {
+            max-height: 600px;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+
+        .alert-feed::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .alert-feed::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+        }
+
+        .alert-feed::-webkit-scrollbar-thumb {
+            background: var(--f1-red);
+            border-radius: 4px;
+        }
+
+        .alert {
+            margin-bottom: 15px;
+            padding: 15px;
+            border-left: 4px solid;
+            border-radius: 8px;
+            animation: slideIn 0.5s ease-out;
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .alert-critical {
+            border-color: var(--f1-red);
+            background: rgba(225, 6, 0, 0.1);
+        }
+
+        .alert-high {
+            border-color: #FF6B35;
+            background: rgba(255, 107, 53, 0.1);
+        }
+
+        .alert-medium {
+            border-color: var(--f1-yellow);
+            background: rgba(255, 215, 0, 0.1);
+        }
+
+        .alert-low {
+            border-color: var(--f1-green);
+            background: rgba(16, 185, 129, 0.1);
+        }
+
+        .alert-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .alert-title {
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+
+        .alert-time {
+            font-size: 0.8rem;
+            color: var(--f1-grey);
+        }
+
+        .alert-body {
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        .alert-detail {
+            margin: 5px 0;
+        }
+
+        .alert-detail strong {
+            color: var(--f1-yellow);
+        }
+
+        /* === ADVICE PANEL === */
+        .advice-list {
+            list-style: none;
+        }
+
+        .advice-item {
+            padding: 12px;
+            margin-bottom: 10px;
+            background: rgba(255, 255, 255, 0.03);
+            border-left: 3px solid var(--f1-yellow);
+            border-radius: 6px;
+        }
+
+        .advice-item::before {
+            content: '⚠️ ';
+            margin-right: 8px;
+        }
+
+        /* === F1 USE CASES === */
+        .use-case {
+            padding: 15px;
+            margin-bottom: 15px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 8px;
+            border-left: 3px solid var(--f1-red);
+        }
+
+        .use-case-title {
+            font-weight: 700;
+            color: var(--f1-yellow);
+            margin-bottom: 8px;
+        }
+
+        .use-case-desc {
+            color: var(--f1-grey);
+            line-height: 1.6;
+        }
+
+        /* === ANIMATIONS === */
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes pulse-green {
+            0%, 100% {
+                box-shadow: 0 0 10px var(--f1-green);
+            }
+            50% {
+                box-shadow: 0 0 20px var(--f1-green);
+            }
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: var(--f1-grey);
+        }
+
+        .error-msg {
+            padding: 15px;
+            background: rgba(225, 6, 0, 0.2);
+            border: 1px solid var(--f1-red);
+            border-radius: 8px;
+            color: var(--f1-red);
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- === HEADER === -->
+        <div class="header">
+            <div class="header-content">
+                <div class="branding">
+                    <div class="logo-container">
+                        <!-- INSERT YOUR LOGO SVG HERE -->
+                        <!-- Example: -->
+                        <!-- <svg viewBox="0 0 200 50" xmlns="http://www.w3.org/2000/svg">
+                            <your logo svg code>
+                        </svg> -->
+                        <!-- Your Overdrive Shield logo -->
+                        <img src="Overdrive_Shield_Logo_no_bg.png" alt="Overdrive Shield" style="transform: scale(2)translateX(20px)translateY(-5px);">
+                    
+                    </div>
+                </div>
+                <div class="status-bar">
+                    <div class="status-item">
+                        <div class="status-light" id="ws-status"></div>
+                        <span id="ws-status-text">Connecting...</span>
+                    </div>
+                    <button class="wallet-btn" id="wallet-btn" onclick="connectWallet()">
+                        Connect Wallet
+                    </button>
+                </div>
+            </div>
+            <div style="color: var(--f1-grey); font-size: 0.9rem; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <span id="contract-address">Contract: Loading...</span>
+                    <span style="margin-left: 20px;" id="wallet-address"></span>
+                </div>
+                <div id="alchemy-stats" style="font-size: 0.8rem; color: var(--f1-yellow);">
+                    <!-- Alchemy stats will appear here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- === MAIN GRID === -->
+        <div class="main-grid">
+            <!-- LEFT COLUMN: Swap Simulator -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">⚡ Swap Simulator</div>
+                </div>
+                
+                <div class="input-group">
+                    <label class="input-label">Token A Amount (to swap)</label>
+                    <input type="number" class="input-field" id="amount-in" placeholder="10" value="10">
+                </div>
+
+                <div class="input-group">
+                    <label class="input-label">Slippage Tolerance (%)</label>
+                    <input type="number" class="input-field" id="slippage" placeholder="1" value="1" step="0.1">
+                </div>
+
+                <button class="simulate-btn" id="simulate-btn" onclick="simulateSwap()">
+                    🏁 Simulate Swap
+                </button>
+
+                <div id="sim-result" style="display: none;" class="sim-result">
+                    <!-- Simulation results will appear here -->
+                </div>
+            </div>
+
+            <!-- RIGHT COLUMN: Real-time Alerts -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">🚨 Live MEV Alerts</div>
+                    <span class="badge badge-low" id="alert-count">0 alerts</span>
+                </div>
+                <div class="alert-feed" id="alert-feed">
+                    <div class="loading">Waiting for transactions...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- === BOTTOM GRID === -->
+        <div class="main-grid">
+            <!-- Actionable Advice -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">💡 Security Advice</div>
+                </div>
+                <ul class="advice-list" id="advice-list">
+                    <li class="advice-item">Set appropriate slippage tolerance (1-2% recommended)</li>
+                    <li class="advice-item">Monitor gas prices before trading</li>
+                    <li class="advice-item">Use minOut parameter to prevent sandwich attacks</li>
+                    <li class="advice-item">Avoid trading during high network congestion</li>
+                </ul>
+            </div>
+
+            <!-- F1 Use Cases -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">🏆 F1 Applications</div>
+                </div>
+                
+                <div class="use-case">
+                    <div class="use-case-title">🎟️ Team Merchandise & Ticketing</div>
+                    <div class="use-case-desc">
+                        Secure DEX for F1 teams to sell limited-edition merch, race tickets, and collectibles
+                        with built-in MEV protection preventing bot front-running of rare items.
+                    </div>
+                </div>
+
+                <div class="use-case">
+                    <div class="use-case-title">🏅 Fan Token Trading</div>
+                    <div class="use-case-desc">
+                        Protected swaps for team fan tokens with real-time monitoring against
+                        pump-and-dump schemes and sandwich attacks during race weekends.
+                    </div>
+                </div>
+
+                <div class="use-case">
+                    <div class="use-case-title">💰 Sponsorship Escrow</div>
+                    <div class="use-case-desc">
+                        Milestone-based sponsor fund releases with security monitoring,
+                        ensuring transparent payments tied to race performance metrics.
+                    </div>
+                </div>
+
+                <div class="use-case">
+                    <div class="use-case-title">📊 Telemetry Data Marketplace</div>
+                    <div class="use-case-desc">
+                        Secure trading of anonymized race telemetry data between teams
+                        with hardened contracts preventing unauthorized access.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // === CHECK ETHERS.JS LOADED ===
+        if (typeof ethers === 'undefined') {
+            document.body.innerHTML = `
+                <div style="display: flex; justify-content: center; align-items: center; height: 100vh; background: #15151E; color: white; font-family: Arial; text-align: center; padding: 20px;">
+                    <div>
+                        <h1 style="color: #E10600;">❌ Failed to Load ethers.js</h1>
+                        <p>The blockchain library could not be loaded from CDN.</p>
+                        <p style="margin-top: 20px;"><strong>Solutions:</strong></p>
+                        <ol style="text-align: left; display: inline-block; margin-top: 10px;">
+                            <li>Check your internet connection</li>
+                            <li>Try using a VPN if CDN is blocked</li>
+                            <li>Refresh the page (Ctrl+F5)</li>
+                            <li>Or use local installation: <code style="background: #333; padding: 2px 5px;">npm install ethers</code></li>
+                        </ol>
+                        <button onclick="location.reload()" style="margin-top: 20px; padding: 10px 20px; background: #E10600; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">
+                            🔄 Retry
+                        </button>
+                    </div>
+                </div>
+            `;
+            throw new Error('ethers.js failed to load from CDN');
+        }
+
+        // === CONFIGURATION ===
+        const DEX_ADDRESS = '0xe723eec12d0c50c57b651c45b325a9a1ccc54ec1';
+        const RPC_URL = 'https://eth-sepolia.g.alchemy.com/v2/RpEw0-KogWJY7CHXFpEwR';
+        
+        const DEX_ABI = [
+            "function swapTokenAForTokenB(uint256 amountInA, uint256 amountOutMin)",
+            "function reserveA() view returns (uint256)",
+            "function reserveB() view returns (uint256)",
+            "function tokenA() view returns (address)",
+            "function tokenB() view returns (address)"
+        ];
+
+        // === STATE ===
+        let provider = null;
+        let signer = null;
+        let dexContract = null;
+        let userAddress = null;
+        let alertCount = 0;
+        let reserves = { reserveA: 0n, reserveB: 0n };
+
+        // === INITIALIZATION ===
+        async function init() {
+            // Setup read-only provider
+            provider = new ethers.providers.JsonRpcProvider(RPC_URL);
+            dexContract = new ethers.Contract(DEX_ADDRESS, DEX_ABI, provider);
+            
+            // Load contract data
+            await loadContractData();
+            
+            // Setup WebSocket
+            setupWebSocket();
+            
+            document.getElementById('contract-address').textContent = 
+                `Contract: ${DEX_ADDRESS.substring(0, 6)}...${DEX_ADDRESS.substring(38)}`;
+        }
+
+        // === WALLET CONNECTION ===
+        async function connectWallet() {
+            try {
+                if (typeof window.ethereum === 'undefined') {
+                    alert('Please install MetaMask!');
+                    return;
+                }
+
+                const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+                userAddress = accounts[0];
+                
+                // Setup web3 provider
+                const web3Provider = new ethers.providers.Web3Provider(window.ethereum);
+                const network = await web3Provider.getNetwork();
+                
+                // Check if on Sepolia (chainId: 11155111)
+                if (network.chainId !== 11155111) {
+                    console.warn('Wrong network detected. Switching to Sepolia...');
+                    
+                    try {
+                        // Try to switch to Sepolia
+                        await ethereum.request({
+                            method: 'wallet_switchEthereumChain',
+                            params: [{ chainId: '0xaa36a7' }], // 11155111 in hex
+                        });
+                    } catch (switchError) {
+                        // Network not added to MetaMask, add it
+                        if (switchError.code === 4902) {
+                            try {
+                                await ethereum.request({
+                                    method: 'wallet_addEthereumChain',
+                                    params: [{
+                                        chainId: '0xaa36a7',
+                                        chainName: 'Sepolia Test Network',
+                                        nativeCurrency: {
+                                            name: 'Sepolia ETH',
+                                            symbol: 'ETH',
+                                            decimals: 18
+                                        },
+                                        rpcUrls: ['https://eth-sepolia.g.alchemy.com/v2/RpEw0-KogWJY7CHXFpEwR'],
+                                        blockExplorerUrls: ['https://sepolia.etherscan.io']
+                                    }]
+                                });
+                            } catch (addError) {
+                                alert('Please manually switch to Sepolia network in MetaMask');
+                                return;
+                            }
+                        } else {
+                            alert('Please switch to Sepolia network in MetaMask');
+                            return;
+                        }
+                    }
+                    
+                    // Reload provider after network switch
+                    const newProvider = new ethers.providers.Web3Provider(window.ethereum);
+                    signer = newProvider.getSigner();
+                } else {
+                    signer = web3Provider.getSigner();
+                }
+                
+                // Setup contract with signer
+                dexContract = new ethers.Contract(DEX_ADDRESS, DEX_ABI, signer);
+                
+                // Reload contract data with new provider
+                try {
+                    await loadContractData();
+                } catch (error) {
+                    console.error('Failed to load contract data after wallet connect:', error);
+                    // Fall back to read-only provider for contract reads
+                    dexContract = new ethers.Contract(DEX_ADDRESS, DEX_ABI, provider);
+                }
+                
+                // Update UI
+                const btn = document.getElementById('wallet-btn');
+                btn.textContent = `${userAddress.substring(0, 6)}...${userAddress.substring(38)}`;
+                btn.classList.add('connected');
+                
+                document.getElementById('wallet-address').textContent = 
+                    `Wallet: ${userAddress.substring(0, 6)}...${userAddress.substring(38)}`;
+                
+                // Enable simulate button
+                document.getElementById('simulate-btn').disabled = false;
+                
+                console.log('Wallet connected:', userAddress);
+                console.log('Network:', network.chainId === 11155111 ? 'Sepolia ✅' : `Chain ${network.chainId} ⚠️`);
+            } catch (error) {
+                console.error('Wallet connection failed:', error);
+                alert('Failed to connect wallet. Please try again.');
+            }
+        }
+
+        // === LOAD CONTRACT DATA ===
+        async function loadContractData() {
+            try {
+                reserves.reserveA = await dexContract.reserveA();
+                reserves.reserveB = await dexContract.reserveB();
+                
+                console.log('Reserves loaded:', {
+                    reserveA: ethers.utils.formatEther(reserves.reserveA),
+                    reserveB: ethers.utils.formatEther(reserves.reserveB)
+                });
+            } catch (error) {
+                console.error('Failed to load reserves:', error);
+            }
+        }
+
+        // === SWAP SIMULATION ===
+        async function simulateSwap() {
+            const amountIn = document.getElementById('amount-in').value;
+            const slippage = document.getElementById('slippage').value;
+            
+            if (!amountIn || amountIn <= 0) {
+                alert('Please enter a valid amount');
+                return;
+            }
+            
+            try {
+                // Reload reserves for accuracy
+                await loadContractData();
+                
+                const amountInWei = ethers.utils.parseEther(amountIn);
+                
+                // Calculate expected output using constant product formula (x * y = k)
+                // amountOut = (amountIn * 0.997 * reserveB) / (reserveA + amountIn * 0.997)
+                const amountInWithFee = amountInWei.mul(997);
+                const numerator = amountInWithFee.mul(reserves.reserveB);
+                const denominator = reserves.reserveA.mul(1000).add(amountInWithFee);
+                const amountOut = numerator.div(denominator);
+                
+                // Calculate minOut with slippage
+                const slippageFactor = ethers.BigNumber.from(100 - parseFloat(slippage));
+                const minOut = amountOut.mul(slippageFactor).div(100);
+                
+                // Calculate price impact
+                const priceImpact = ((parseFloat(amountIn) / parseFloat(ethers.utils.formatEther(reserves.reserveA))) * 100).toFixed(2);
+                
+                // Display results
+                const resultDiv = document.getElementById('sim-result');
+                resultDiv.style.display = 'block';
+                resultDiv.innerHTML = `
+                    <div class="sim-result-row">
+                        <span class="sim-label">Expected Output (Token B):</span>
+                        <span class="sim-value">${ethers.utils.formatEther(amountOut)} tokens</span>
+                    </div>
+                    <div class="sim-result-row">
+                        <span class="sim-label">Minimum Output (with ${slippage}% slippage):</span>
+                        <span class="sim-value">${ethers.utils.formatEther(minOut)} tokens</span>
+                    </div>
+                    <div class="sim-result-row">
+                        <span class="sim-label">Price Impact:</span>
+                        <span class="sim-value">${priceImpact}%</span>
+                    </div>
+                    <div class="sim-result-row">
+                        <span class="sim-label">Reserve A:</span>
+                        <span class="sim-value">${ethers.utils.formatEther(reserves.reserveA)} tokens</span>
+                    </div>
+                    <div class="sim-result-row">
+                        <span class="sim-label">Reserve B:</span>
+                        <span class="sim-value">${ethers.utils.formatEther(reserves.reserveB)} tokens</span>
+                    </div>
+                `;
+                
+                // Update advice based on simulation
+                updateAdvice(parseFloat(priceImpact), parseFloat(slippage));
+                
+            } catch (error) {
+                console.error('Simulation failed:', error);
+                alert('Simulation failed. Check console for details.');
+            }
+        }
+
+        // === UPDATE ADVICE ===
+        function updateAdvice(priceImpact, slippage) {
+            const adviceList = document.getElementById('advice-list');
+            const advice = [];
+            
+            if (priceImpact > 5) {
+                advice.push('⛔ High price impact detected! Consider splitting into smaller trades.');
+            }
+            
+            if (slippage > 2) {
+                advice.push('⚠️ High slippage tolerance increases MEV vulnerability. Lower to 1-2%.');
+            } else {
+                advice.push('✅ Good slippage tolerance set.');
+            }
+            
+            if (priceImpact < 1) {
+                advice.push('✅ Low price impact - safe to execute.');
+            }
+            
+            advice.push('💡 Always verify transaction details before signing.');
+            advice.push('🔍 Check gas prices to avoid paying excessive fees.');
+            
+            adviceList.innerHTML = advice.map(a => `<li class="advice-item">${a}</li>`).join('');
+        }
+
+        // === WEBSOCKET SETUP ===
+        function setupWebSocket() {
+            const socket = new WebSocket('ws://localhost:8080');
+            const wsStatus = document.getElementById('ws-status');
+            const wsStatusText = document.getElementById('ws-status-text');
+            const alertFeed = document.getElementById('alert-feed');
+            
+            socket.onopen = function() {
+                console.log('WebSocket connected');
+                wsStatus.classList.add('online');
+                wsStatusText.textContent = 'Live';
+                alertFeed.innerHTML = '<div class="loading">Monitoring mempool...</div>';
+            };
+            
+            socket.onclose = function() {
+                console.log('WebSocket disconnected');
+                wsStatus.classList.remove('online');
+                wsStatus.classList.add('offline');
+                wsStatusText.textContent = 'Offline';
+            };
+            
+            socket.onerror = function(error) {
+                console.error('WebSocket error:', error);
+                wsStatus.classList.add('offline');
+                wsStatusText.textContent = 'Error';
+            };
+            
+            socket.onmessage = function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+                    console.log('Alert received:', data);
+                    
+                    if (data.type === 'MEV_ALERT') {
+                        addAlert(data);
+                    } else if (data.type === 'SYSTEM_STATUS') {
+                        console.log('System status:', data);
+                        updateAlchemyStats(data);
+                    }
+                } catch (error) {
+                    console.error('Failed to parse message:', error);
+                }
+            };
+        }
+
+        // === ADD ALERT ===
+        function addAlert(data) {
+            const alertFeed = document.getElementById('alert-feed');
+            
+            // Clear "waiting" message if present
+            if (alertFeed.querySelector('.loading')) {
+                alertFeed.innerHTML = '';
+            }
+            
+            const alertDiv = document.createElement('div');
+            const riskClass = data.riskLevel ? `alert-${data.riskLevel.toLowerCase()}` : 'alert-low';
+            alertDiv.className = `alert ${riskClass}`;
+            
+            const time = new Date().toLocaleTimeString();
+            const hash = data.hash ? `${data.hash.substring(0, 10)}...` : 'N/A';
+            const from = data.from ? `${data.from.substring(0, 8)}...` : 'N/A';
+            
+            let detailsHTML = '';
+            if (data.riskFactors && data.riskFactors.length > 0) {
+                detailsHTML = data.riskFactors.map(f => 
+                    `<div class="alert-detail">• ${f}</div>`
+                ).join('');
+            }
+            
+            // ALCHEMY ENHANCED: Add bot detection insights
+            let alchemyBadge = '';
+            if (data.alchemyInsights) {
+                if (data.alchemyInsights.isKnownBot) {
+                    alchemyBadge = '<span style="background: var(--f1-red); color: white; padding: 3px 8px; border-radius: 10px; font-size: 0.75rem; margin-left: 8px;">🤖 KNOWN BOT</span>';
+                } else if (data.alchemyInsights.isSuspiciousBehavior) {
+                    alchemyBadge = '<span style="background: var(--f1-yellow); color: black; padding: 3px 8px; border-radius: 10px; font-size: 0.75rem; margin-left: 8px;">⚠️ SUSPICIOUS</span>';
+                }
+            }
+            
+            // ENHANCED: MEV Type Badge
+            let mevTypeBadge = '';
+            if (data.mevType) {
+                let mevClass = '';
+                switch(data.mevType) {
+                    case 'FRONT-RUN': mevClass = 'mev-frontrun'; break;
+                    case 'BACK-RUN': mevClass = 'mev-backrun'; break;
+                    case 'NORMAL': mevClass = 'mev-normal'; break;
+                    case 'SUSPICIOUS': mevClass = 'mev-suspicious'; break;
+                    default: mevClass = 'mev-suspicious';
+                }
+                mevTypeBadge = `<span class="mev-badge ${mevClass}">${data.mevBadge || data.mevType}</span>`;
+            }
+            
+            // ALCHEMY: Build insights section
+            let alchemyHTML = '';
+            if (data.alchemyInsights) {
+                alchemyHTML = `
+                    <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.1);">
+                        <div style="font-size: 0.85rem; color: var(--f1-yellow); font-weight: 700; margin-bottom: 5px;">
+                            🔬 Alchemy Bot Detection
+                        </div>
+                        <div class="alert-detail">Address Transactions: ${data.alchemyInsights.addressTxCount}</div>
+                        <div class="alert-detail">Simulation: ${data.alchemyInsights.simulationSuccess ? '✅ Passed' : '❌ Failed'}</div>
+                        ${data.alchemyInsights.isKnownBot ? '<div class="alert-detail" style="color: var(--f1-red);">🤖 Known MEV bot detected</div>' : ''}
+                        ${data.alchemyInsights.isSuspiciousBehavior ? '<div class="alert-detail" style="color: var(--f1-yellow);">⚠️ Suspicious behavior pattern</div>' : ''}
+                    </div>
+                `;
+            }
+            
+            alertDiv.innerHTML = `
+                <div class="alert-header">
+                    <div class="alert-title">
+                        ${data.riskLevel === 'CRITICAL' ? '🔴' : data.riskLevel === 'HIGH' ? '🟠' : data.riskLevel === 'MEDIUM' ? '🟡' : '🟢'} 
+                        ${data.functionName || 'Transaction'} - ${data.riskLevel || 'INFO'}
+                        ${mevTypeBadge}
+                        ${alchemyBadge}
+                    </div>
+                    <div class="alert-time">${time}</div>
+                </div>
+                <div class="alert-body">
+                    <div class="alert-detail"><strong>From:</strong> ${from}</div>
+                    <div class="alert-detail"><strong>Hash:</strong> ${hash}</div>
+                    <div class="alert-detail"><strong>Risk Score:</strong> ${data.riskScore || 0}/100</div>
+                    ${data.gasInfo ? `<div class="alert-detail"><strong>Gas:</strong> ${data.gasInfo}</div>` : ''}
+                    ${detailsHTML}
+                    ${alchemyHTML}
+                </div>
+            `;
+            
+            alertFeed.insertBefore(alertDiv, alertFeed.firstChild);
+            
+            // Update alert count
+            alertCount++;
+            const countBadge = document.getElementById('alert-count');
+            countBadge.textContent = `${alertCount} alert${alertCount !== 1 ? 's' : ''}`;
+            
+            // Update badge color based on latest risk
+            countBadge.className = 'badge';
+            if (data.riskLevel === 'CRITICAL') countBadge.classList.add('badge-critical');
+            else if (data.riskLevel === 'HIGH') countBadge.classList.add('badge-high');
+            else if (data.riskLevel === 'MEDIUM') countBadge.classList.add('badge-medium');
+            else countBadge.classList.add('badge-low');
+            
+            // Limit to 50 alerts
+            while (alertFeed.children.length > 50) {
+                alertFeed.removeChild(alertFeed.lastChild);
+            }
+        }
+
+        // === UPDATE ALCHEMY STATS ===
+        function updateAlchemyStats(data) {
+            const statsDiv = document.getElementById('alchemy-stats');
+            if (!statsDiv) return;
+            
+            if (data.alchemyStats) {
+                const stats = data.alchemyStats;
+                statsDiv.innerHTML = `
+                    🔬 Alchemy: ${stats.trackedAddresses} addresses tracked | 
+                    ${stats.suspiciousAddresses} suspicious | 
+                    ${stats.knownBots} known bots
+                `;
+                statsDiv.title = `Detection Engine: ${stats.detectionEngine}`;
+            }
+        }
+
+        // === START ===
+        window.addEventListener('load', init);
+
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MEV Detection Dashboard</title>
+    <!-- Using a common "hacker" style font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@300;400;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* --- Theme & Base --- */
+        :root {
+            --color-black: #0a0a0a;
+            --color-dark-grey: #1c1c1c;
+            --color-grey: #444;
+            --color-red: #ef4444;
+            --color-bright-red: #ff5555;
+            --color-yellow: #facc15;
+            --color-white: #f1f1f1;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            font-family: 'Roboto Mono', monospace;
+            background-color: var(--color-black);
+            color: var(--color-white);
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            padding: 24px;
+        }
+
+        /* --- Header --- */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--color-grey);
+            padding-bottom: 16px;
+            flex-shrink: 0;
+        }
+
+        header h1 {
+            color: var(--color-white);
+            font-size: 2rem;
+            text-shadow: 0 0 5px var(--color-white);
+        }
+
+        #status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1rem;
+        }
+
+        /* Status indicator light animation */
+        #status-light {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background-color: var(--color-grey);
+            transition: all 0.3s ease;
+        }
+        #status-light.connected {
+            background-color: var(--color-yellow);
+            box-shadow: 0 0 10px var(--color-yellow);
+            animation: pulse-yellow 2s infinite;
+        }
+        #status-light.disconnected {
+            background-color: var(--color-red);
+            box-shadow: 0 0 10px var(--color-red);
+        }
+
+        /* --- Alert Feed (Scrolling) --- */
+        main {
+            flex-grow: 1;
+            margin-top: 16px;
+            overflow-y: auto; /* This enables scrolling */
+            display: flex;
+            flex-direction: column-reverse; /* New items appear at the top */
+        }
+
+        #alert-feed {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        /* --- Alert Styling & Animation --- */
+        .alert {
+            border: 1px solid var(--color-grey);
+            background-color: var(--color-dark-grey);
+            border-radius: 8px;
+            padding: 16px;
+            opacity: 0;
+            transform: translateX(-20px);
+            animation: slideIn 0.5s forwards;
+        }
+
+        .alert-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        
+        .alert-details {
+            font-size: 0.9rem;
+            word-break: break-all;
+        }
+        .alert-details strong {
+            font-weight: 400;
+        }
+
+        /* Red Alert (Front-run / Sandwich) */
+        .alert-red {
+            border-left: 5px solid var(--color-red);
+            box-shadow: 0 0 15px -5px var(--color-red);
+        }
+        .alert-red .alert-title {
+            color: var(--color-bright-red);
+        }
+        .alert-red .alert-details strong {
+            color: var(--color-bright-red);
+        }
+
+        /* Yellow Alert (Victim / Welcome) */
+        .alert-yellow {
+            border-left: 5px solid var(--color-yellow);
+            box-shadow: 0 0 15px -5px var(--color-yellow);
+        }
+        .alert-yellow .alert-title {
+            color: var(--color-yellow);
+        }
+        .alert-yellow .alert-details strong {
+            color: var(--color-yellow);
+        }
+
+        /* --- Keyframe Animations --- */
+        @keyframes slideIn {
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes pulse-yellow {
+            0% { box-shadow: 0 0 8px var(--color-yellow); }
+            50% { box-shadow: 0 0 16px var(--color-yellow); }
+            100% { box-shadow: 0 0 8px var(--color-yellow); }
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- Header with Title and Status -->
+    <header>
+        <h1>MEV Detection Dashboard</h1>
+        <div id="status-indicator">
+            <span id="status-text">Connecting...</span>
+            <div id="status-light"></div>
+        </div>
+    </header>
+
+    <!-- Main scrolling feed for alerts -->
+    <main>
+        <div id="alert-feed">
+            <!-- Alerts will be injected here by JavaScript -->
+        </div>
+    </main>
+
+    <script>
+        // --- WebSocket Connection ---
+        const alertFeed = document.getElementById('alert-feed');
+        const statusText = document.getElementById('status-text');
+        const statusLight = document.getElementById('status-light');
+
+        const socket = new WebSocket('ws://localhost:8080');
+
+        // On Connection Open
+        socket.onopen = function() {
+            console.log("WebSocket connected!");
+            statusText.textContent = "Connected (Live)";
+            statusLight.className = "connected";
+        };
+
+        // On Connection Close
+        socket.onclose = function() {
+            console.log("WebSocket disconnected.");
+            statusText.textContent = "Disconnected";
+            statusLight.className = "disconnected";
+        };
+
+        // On Error
+        socket.onerror = function(error) {
+            console.error("WebSocket Error:", error);
+            statusText.textContent = "Error";
+            statusLight.className = "disconnected";
+        };
+
+        // --- Handle Incoming Messages ---
+        socket.onmessage = function(event) {
+            try {
+                const data = JSON.parse(event.data);
+                console.log("Message received:", data);
+
+                // We only care about MEV alerts (and the welcome message)
+                if (data.type === "WELCOME" || data.type === "MEV_ALERT") {
+                    createAlertElement(data);
+                }
+
+            } catch (error) {
+                console.error("Error parsing message:", error);
+            }
+        };
+
+        // --- Helper function to create alert HTML ---
+        function createAlertElement(data) {
+            const alertEl = document.createElement('div');
+            let alertClass = 'alert';
+            let title = 'Alert';
+            let details = '';
+            
+            const now = new Date().toLocaleTimeString();
+
+            if (data.type === "WELCOME") {
+                alertClass += ' alert-yellow';
+                title = 'System Connected';
+                details = `<strong>Time:</strong> ${now}<br>
+                           <strong>Message:</strong> ${data.message}`;
+            } 
+            else if (data.type === "MEV_ALERT") {
+                // Determine color based on reason
+                if (data.reason.includes("Sandwich")) {
+                    alertClass += ' alert-red';
+                    title = '🥪 SANDWICH ATTACK 🥪';
+                } else if (data.reason.includes("Front-run")) {
+                    alertClass += ' alert-red';
+                    title = '🚨 High Gas (Front-run)';
+                } else {
+                    alertClass += ' alert-yellow';
+                    title = '👤 Potential Victim';
+                }
+
+                details = `<strong>Time:</strong> ${now}<br>
+                           <strong>Reason:</strong> ${data.reason}<br>
+                           <strong>Gas:</strong> ${data.gasInfo}<br>
+                           <strong>From:</strong> ${data.from}<br>
+                           <strong>Hash:</strong> ${data.hash}`;
+            }
+
+            alertEl.className = alertClass;
+            alertEl.innerHTML = `
+                <div class="alert-title">${title}</div>
+                <div class="alert-details">${details}</div>
+            `;
+
+            // Prepend (add to top) and scroll into view
+            alertFeed.prepend(alertEl);
+        }
+
+    </script>
+
+</body>
+</html>
